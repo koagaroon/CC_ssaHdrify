@@ -9,7 +9,7 @@ def validateBrightness(newBrightness):
     valid = re.match('^[0-9]*$', newBrightness) is not None
     if valid:
         if len(newBrightness) == 0:
-            config.targetBrightness = 0
+            return True
         else:
             config.targetBrightness = min(int(newBrightness), 10000)
         return True

@@ -68,6 +68,9 @@ def sRgbToHdr(source: tuple[int, int, int]) -> tuple[int, int, int]:
     args:
     colour -- (0-255, 0-255, 0-255)
     """
+    if source == (0, 0, 0):
+        return (0, 0, 0)
+
     srgb_brightness = config.targetBrightness
 
     normalized_sdr_color = np.array(source) / 255
@@ -79,7 +82,7 @@ def sRgbToHdr(source: tuple[int, int, int]) -> tuple[int, int, int]:
 
     output = XYZ_to_RGB(xyY_to_XYZ(xyY_hdr_color), colourspace=COLOURSPACE_BT2100_PQ, apply_cctf_encoding=True)
 
-    output = np.round(output * 255)
+    output = np.clip(np.round(output * 255), 0, 255)
 
     return (int(output[0]), int(output[1]), int(output[2]))
 
@@ -99,7 +102,7 @@ def eventColorReplacer(match):
 
     alpha = hex_colour[:2] if len(hex_colour) == 8 else ''
     hex_colour = hex_colour[2:] if len(hex_colour) == 8 else hex_colour
-    hex_colour.rjust(6, '0')
+    hex_colour = hex_colour.rjust(6, '0')
     b = int(hex_colour[0:2], 16)
     g = int(hex_colour[2:4], 16)
     r = int(hex_colour[4:6], 16)
@@ -119,23 +122,29 @@ def ssaProcessor(fname: str):
         print(f'Missing file: {fname}')
         return
 
-    with open(fname, 'rb') as undetectedStringFile:
-        detected = from_bytes(undetectedStringFile.read())
-        content = detected.best()
-        sub = ssa.parse(StringIO(str(content)))
+    try:
+        with open(fname, 'rb') as undetectedStringFile:
+            detected = from_bytes(undetectedStringFile.read())
+            content = detected.best()
+            if content is None:
+                print(f'Error: could not detect encoding for {fname}')
+                return
+            sub = ssa.parse(StringIO(str(content)))
 
-        for s in sub.styles:
-            transformColour(s.primary_color)
-            transformColour(s.secondary_color)
-            transformColour(s.outline_color)
-            transformColour(s.back_color)
+            for s in sub.styles:
+                transformColour(s.primary_color)
+                transformColour(s.secondary_color)
+                transformColour(s.outline_color)
+                transformColour(s.back_color)
 
-        for e in sub.events:
-            transformEvent(e)
+            for e in sub.events:
+                transformEvent(e)
 
-        output_fname = os.path.splitext(fname)
-        output_fname = output_fname[0] + '.hdr.ass'
+            output_fname = os.path.splitext(fname)
+            output_fname = output_fname[0] + '.hdr.ass'
 
-        with open(output_fname, 'w', encoding='utf_8_sig') as f:
-            sub.dump_file(f)
-            print(f'Wrote {output_fname}')
+            with open(output_fname, 'w', encoding='utf_8_sig') as f:
+                sub.dump_file(f)
+                print(f'Wrote {output_fname}')
+    except Exception as e:
+        print(f'Error converting {fname}: {e}')

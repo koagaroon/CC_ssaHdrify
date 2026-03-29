@@ -54,6 +54,6 @@ app = BUNDLE(
     coll,
     name='ssa hdrify.app',
     icon='hdr.icns',
-    bundle_identifier='ssa hdrify',
+    bundle_identifier='com.gky99.ssa-hdrify',
     version=options.app_version
 )

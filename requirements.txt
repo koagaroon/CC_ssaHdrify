@@ -1,5 +1,7 @@
 ass~=0.5.0
 numpy~=2.1.0
 colour-science~=0.4.0,>=0.4.4
-pyinstaller~=6.16.0
 charset-normalizer~=3.4.3
+
+# Build dependencies (not needed for running):
+# pyinstaller~=6.16.0
