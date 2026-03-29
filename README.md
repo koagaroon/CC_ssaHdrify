@@ -82,9 +82,16 @@ Theoretically this process preserves color accuracy. However, due to the complex
 | [colour-science](https://pypi.org/project/colour-science/) | 色彩空间转换 / Color space transformations |
 | [numpy](https://pypi.org/project/numpy/) | 数值计算 / Numerical computation |
 | [charset-normalizer](https://pypi.org/project/charset-normalizer/) | 文件编码检测 / File encoding detection |
+| [Pillow](https://pypi.org/project/pillow/) | 窗口图标加载 / Window icon loading |
+
+从源码运行时，先在项目根目录安装依赖：
+
+When running from source, install dependencies in the project root:
 
 ```bash
+cd path/to/ssaHdrify
 pip install -r requirements.txt
+python src/main.py
 ```
 
 ---
