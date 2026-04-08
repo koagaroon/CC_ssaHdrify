@@ -39,16 +39,16 @@ class FileSelectionButton(Button):
                 # 1. self.after() 本身在 Tcl 解释器关闭后会抛出 TclError
                 # 2. 即使 after() 成功，回调执行时 widget 也可能已销毁
                 try:
-                    self.after(
-                        0,
-                        lambda: self.configure(state='normal')
-                        if self.winfo_exists() else None
-                    )
+                    self.after(0, self._restoreButton)
                 except tkinter.TclError:
                     pass  # 窗口已销毁，状态恢复无意义，直接跳过
 
         self._worker_thread = threading.Thread(target=worker, daemon=False)
         self._worker_thread.start()
+
+    def _restoreButton(self):
+        if self.winfo_exists():
+            self.configure(state='normal')
 
     @property
     def is_converting(self) -> bool:

@@ -21,15 +21,12 @@ class QueueStream:
     def flush(self) -> None:
         pass  # 满足 TextIO 接口，无需实际实现
 
-    def get_queue(self) -> "queue.Queue[str]":
-        return self._queue
-
 
 class MessageFrame(LabelFrame):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
         self.messageStream = QueueStream()
-        self._queue = self.messageStream.get_queue()
+        self._queue = self.messageStream._queue
         self.callbackId = ""
         self.text = tkinter.Text(master=self)
         self.text.pack(expand=True, fill='both')

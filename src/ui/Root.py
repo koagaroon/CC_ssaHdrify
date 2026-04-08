@@ -1,6 +1,5 @@
 import platform
-import tkinter
-from tkinter import Tk, messagebox
+from tkinter import NSEW, Tk, messagebox
 from tkinter.ttk import Style
 
 from ui.MessageFrame import MessageFrame
@@ -12,7 +11,6 @@ def setStyle():
     tk_style = Style()
     if sys_name == 'Windows':
         tk_style.theme_use('vista')
-    return
 
 
 class Root(Tk):
@@ -31,7 +29,7 @@ class Root(Tk):
 
         # Message frame
         self.textFrame = MessageFrame(master=self, text="Message", borderwidth=1)
-        self.textFrame.grid(row=1, sticky=tkinter.NSEW, padx=5, pady=5)
+        self.textFrame.grid(row=1, sticky=NSEW, padx=5, pady=5)
 
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 

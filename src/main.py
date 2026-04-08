@@ -10,7 +10,7 @@ if __name__ == '__main__':
     icon = Image.open(path.abspath(path.join(path.dirname(__file__), 'asset/hdr.png')))
     root.wm_iconphoto(False, ImageTk.PhotoImage(icon))
 
-    with redirect_stderr(root.textFrame.messageStream):
-        with redirect_stdout(root.textFrame.messageStream):
-            print("Please select input files to convert")
-            root.mainloop()
+    with redirect_stderr(root.textFrame.messageStream), \
+         redirect_stdout(root.textFrame.messageStream):
+        print("Please select input files to convert")
+        root.mainloop()

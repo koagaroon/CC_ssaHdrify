@@ -1,8 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
-import platform
-
-OS_TYPE = platform.system()
 
 app_version = os.environ.get("APP_VERSION", "0.0.1")
 

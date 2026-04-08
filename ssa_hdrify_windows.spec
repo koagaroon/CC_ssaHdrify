@@ -1,8 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
 
-app_version = os.environ.get("APP_VERSION", "0.0.1")
-
 a = Analysis(
     ['src/main.py'],
     pathex=[],

@@ -27,7 +27,6 @@ COLOURSPACE_BT2100_PQ = RGB_Colourspace(
 """HDR color space on display side."""
 
 
-
 def sRgbToHdr(source: tuple[int, int, int], target_brightness: int | None = None) -> tuple[int, int, int]:
     """
     Convert RGB color in SDR color space to HDR color space.
@@ -77,8 +76,8 @@ def transformColour(colour, target_brightness: int | None = None):
     colour.b = transformed[2]
 
 
-def _makeEventColorReplacer(target_brightness: int | None = None):
-    def eventColorReplacer(match):
+def transformEvent(event, target_brightness: int | None = None):
+    def _replaceColor(match):
         prefix = match.group(1)
         hex_colour = match.group(2)
 
@@ -91,14 +90,8 @@ def _makeEventColorReplacer(target_brightness: int | None = None):
 
         (r, g, b) = sRgbToHdr((r, g, b), target_brightness)
         return prefix + alpha + '{:02x}{:02x}{:02x}'.format(b, g, r)
-    return eventColorReplacer
 
-
-def transformEvent(event, target_brightness: int | None = None):
-    line = event.text
-    replacer = _makeEventColorReplacer(target_brightness)
-    new_line = re.sub(r'(\\[0-9]?c&H)([0-9a-fA-F]{6,8})(?=[&})\\])', replacer, line)
-    event.text = new_line
+    event.text = re.sub(r'(\\[0-9]?c&H)([0-9a-fA-F]{6,8})(?=[&})\\])', _replaceColor, event.text)
 
 
 def ssaProcessor(fname: str, target_brightness: int | None = None):

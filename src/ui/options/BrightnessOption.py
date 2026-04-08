@@ -1,4 +1,3 @@
-import re
 import tkinter
 from tkinter.ttk import Frame, Label, Entry
 
@@ -14,9 +13,9 @@ def validateBrightness(newBrightness):
     - 有效范围：1–10000（nits）
     - 超界时拒绝键入，保持显示值与实际生效值严格一致
     """
-    if re.match('^[0-9]*$', newBrightness) is None:
+    if not newBrightness.isdigit() and newBrightness != '':
         return False           # 拒绝非数字字符
-    if len(newBrightness) == 0:
+    if newBrightness == '':
         return True            # 允许临时清空
     value = int(newBrightness)
     if value < 1 or value > 10000:
