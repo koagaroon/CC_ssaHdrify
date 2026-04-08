@@ -24,6 +24,10 @@ jobs:
       - name: Create tag (skip if already exists)
         run: |
           TAG=$(<${{inputs.version_file}})
+          if [[ ! "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "::error::Invalid version tag format: '$TAG'"
+            exit 1
+          fi
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "Tag $TAG already exists, skipping"
           else

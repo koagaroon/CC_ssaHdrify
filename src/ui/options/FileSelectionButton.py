@@ -1,6 +1,6 @@
 import tkinter
 import threading
-from tkinter import filedialog
+from tkinter import filedialog, messagebox
 from tkinter.ttk import Button
 
 from conversion_setting import config
@@ -18,6 +18,12 @@ class FileSelectionButton(Button):
         files = filedialog.askopenfilenames(filetypes=[('ASS files', '.ass .ssa'),
                                                        ('all files', '.*')])
         if not files:
+            return
+
+        brightness_str = self.master.brightness_frame.target_brightness_var.get()
+        if not brightness_str or not brightness_str.isdigit() or int(brightness_str) < 1:
+            messagebox.showerror("Invalid brightness",
+                                 "Please enter a target brightness value (1\u201310000 nits).")
             return
 
         self.configure(state='disabled')

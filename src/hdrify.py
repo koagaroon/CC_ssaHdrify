@@ -97,7 +97,7 @@ def _makeEventColorReplacer(target_brightness: int | None = None):
 def transformEvent(event, target_brightness: int | None = None):
     line = event.text
     replacer = _makeEventColorReplacer(target_brightness)
-    new_line = re.sub(r'(\\[0-9]?c&H)([0-9a-fA-F]{2,})(?=[&})\\])', replacer, line)
+    new_line = re.sub(r'(\\[0-9]?c&H)([0-9a-fA-F]{6,8})(?=[&})\\])', replacer, line)
     event.text = new_line
 
 

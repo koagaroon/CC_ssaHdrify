@@ -1,4 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
+
+app_version = os.environ.get("APP_VERSION", "0.0.1")
 
 a = Analysis(
     ['src/main.py'],
@@ -27,7 +30,7 @@ exe = EXE(
     upx=False,
     console=False,
     disable_windowed_traceback=False,
-    icon='hdr.ico',
+    icon=os.path.join(SPECPATH, 'hdr.ico'),
 )
 coll = COLLECT(
     exe,

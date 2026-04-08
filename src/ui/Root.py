@@ -44,4 +44,5 @@ class Root(Tk):
             ):
                 self.after(200, self._on_close)
                 return
+        self.textFrame.stopPolling()
         self.destroy()

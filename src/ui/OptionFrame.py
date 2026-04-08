@@ -16,8 +16,8 @@ class OptionFrame(LabelFrame):
         eotf_frame.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
 
         # Target brightness option
-        brightness_frame = BrightnessOption(master=self)
-        brightness_frame.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
+        self.brightness_frame = BrightnessOption(master=self)
+        self.brightness_frame.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
 
         # Select file button
         self.select_file_button = FileSelectionButton(master=self)

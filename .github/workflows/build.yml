@@ -3,8 +3,18 @@ name: Build-dist
 on:
   push:
     branches: [ master ]
+    paths:
+      - 'src/**'
+      - '*.spec'
+      - 'requirements.txt'
+      - 'VERSION'
   pull_request:
     branches: [ master ]
+    paths:
+      - 'src/**'
+      - '*.spec'
+      - 'requirements.txt'
+      - 'VERSION'
 
 jobs:
   get-version:
@@ -56,13 +66,17 @@ jobs:
 
       - name: Windows Build
         if: matrix.os == 'windows'
+        env:
+          APP_VERSION: ${{ needs.get-version.outputs.version }}
         run: |
           pyinstaller -y ssa_hdrify_windows.spec
 
       - name: Mac Build
         if: matrix.os == 'macos'
+        env:
+          APP_VERSION: ${{ needs.get-version.outputs.version }}
         run: |
-          pyinstaller -y ssa_hdrify_macos.spec -- --app-version=$(<VERSION)
+          pyinstaller -y ssa_hdrify_macos.spec
 
       - name: Mac clean up dist folder
         if: matrix.os == 'macos'

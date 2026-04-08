@@ -47,3 +47,9 @@ class MessageFrame(LabelFrame):
         self.text.config(state=tkinter.DISABLED)
         self.text.see(tkinter.END)  # 自动滚动到最新消息
         self.callbackId = self.after(500, self.updateText)
+
+    def stopPolling(self):
+        """Cancel the pending after callback to prevent errors on window close."""
+        if self.callbackId:
+            self.after_cancel(self.callbackId)
+            self.callbackId = ""

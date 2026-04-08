@@ -2,7 +2,7 @@ import tkinter
 from tkinter import StringVar
 from tkinter.ttk import Frame, Label, Combobox
 
-EOTF_options = ["PQ", "HLG"]
+EOTF_options = ["PQ"]
 
 class EotfOption(Frame):
     def __init__(self, master=None, **kwargs):

@@ -1,12 +1,10 @@
 # -*- mode: python ; coding: utf-8 -*-
-import argparse
+import os
 import platform
 
 OS_TYPE = platform.system()
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--app-version", action="store", default="0.0.1")
-options = parser.parse_args()
+app_version = os.environ.get("APP_VERSION", "0.0.1")
 
 a = Analysis(
     ['src/main.py'],
@@ -39,7 +37,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['hdr.icns'],
+    icon=[os.path.join(SPECPATH, 'hdr.icns')],
 )
 coll = COLLECT(
     exe,
@@ -53,7 +51,7 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='ssa hdrify.app',
-    icon='hdr.icns',
+    icon=os.path.join(SPECPATH, 'hdr.icns'),
     bundle_identifier='com.gky99.ssa-hdrify',
-    version=options.app_version
+    version=app_version
 )
