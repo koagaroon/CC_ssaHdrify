@@ -12,6 +12,7 @@ class FileSelectionButton(Button):
         super().__init__(master, text="Select file and convert", **kwargs)
         self.configure(command=self._on_click)
         self._worker_thread = None
+        self._cancel_event = threading.Event()
 
     def _on_click(self) -> None:
         """Open file dialog and convert selected subtitle files."""
@@ -28,10 +29,14 @@ class FileSelectionButton(Button):
 
         self.configure(state='disabled')
         brightness = config.targetBrightness
+        self._cancel_event.clear()
 
         def worker():
             try:
                 for f in files:
+                    if self._cancel_event.is_set():
+                        print("Conversion cancelled.")
+                        break
                     print(f"Converting file: {f}")
                     ssaProcessor(f, target_brightness=brightness)
             finally:
@@ -49,6 +54,12 @@ class FileSelectionButton(Button):
     def _restoreButton(self):
         if self.winfo_exists():
             self.configure(state='normal')
+
+    def cancel_and_wait(self, timeout: float = 2.0) -> None:
+        """Signal the worker thread to stop and wait for it to finish."""
+        if self._worker_thread is not None and self._worker_thread.is_alive():
+            self._cancel_event.set()
+            self._worker_thread.join(timeout=timeout)
 
     @property
     def is_converting(self) -> bool:

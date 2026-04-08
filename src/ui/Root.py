@@ -42,5 +42,6 @@ class Root(Tk):
             ):
                 self.after(200, self._on_close)
                 return
+            convert_btn.cancel_and_wait(timeout=2.0)
         self.textFrame.stopPolling()
         self.destroy()

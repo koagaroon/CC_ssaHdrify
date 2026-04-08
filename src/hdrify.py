@@ -111,6 +111,11 @@ def ssaProcessor(fname: str, target_brightness: int | None = None):
         print(f'Error: could not detect encoding for {fname}')
         return
 
+    if content.coherence < 0.5:
+        print(f'Warning: low confidence encoding detection for {fname} '
+              f'(encoding={content.encoding}, coherence={content.coherence:.1%}). '
+              f'Output may contain garbled text.')
+
     try:
         sub = ssa.parse(StringIO(str(content)))
     except Exception as e:
