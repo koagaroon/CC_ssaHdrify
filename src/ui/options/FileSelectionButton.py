@@ -56,11 +56,10 @@ class FileSelectionButton(Button):
         if self.winfo_exists():
             self.configure(state='normal')
 
-    def cancel_and_wait(self, timeout: float = 2.0) -> None:
-        """Signal the worker thread to stop and wait for it to finish."""
+    def cancel_and_wait(self, timeout: float = 0) -> None:
+        """Signal the worker thread to stop. Thread is daemon, no need to block."""
         if self._worker_thread is not None and self._worker_thread.is_alive():
             self._cancel_event.set()
-            self._worker_thread.join(timeout=timeout)
 
     @property
     def is_converting(self) -> bool:
