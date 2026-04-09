@@ -20,10 +20,10 @@ class Root(Tk):
         self.title(i18n.get("window_title"))
         setStyle()
 
-        # Window sizing: 1/4 screen area, centered
+        # Window sizing: ~30% screen area (3/5 width × 1/2 height), centered
         screen_w = self.winfo_screenwidth()
         screen_h = self.winfo_screenheight()
-        win_w = screen_w // 2
+        win_w = screen_w * 3 // 5
         win_h = screen_h // 2
         x = (screen_w - win_w) // 2
         y = (screen_h - win_h) // 2
