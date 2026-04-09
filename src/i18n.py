@@ -81,10 +81,10 @@ def _config_path() -> str:
 def _detect_system_language() -> str:
     """Detect system language; return 'zh' for Chinese locales, 'en' otherwise."""
     try:
-        lang = locale.getdefaultlocale()[0] or ""
+        lang = locale.getlocale()[0] or os.environ.get("LANG", "") or ""
     except (ValueError, TypeError):
         lang = ""
-    return "zh" if lang.startswith("zh") else "en"
+    return "zh" if lang.lower().startswith("zh") else "en"
 
 
 def _load_config() -> dict:
@@ -130,11 +130,18 @@ def current() -> str:
     return _current_lang
 
 
-def toggle() -> str:
-    """Toggle between en/zh, save to config, return new language."""
+def set_language(lang: str) -> str:
+    """Set language explicitly, save to config, return the language set."""
     global _current_lang
-    _current_lang = "zh" if _current_lang == "en" else "en"
+    if lang not in SUPPORTED_LANGUAGES:
+        lang = "en"
+    _current_lang = lang
     cfg = _load_config()
     cfg["language"] = _current_lang
     _save_config(cfg)
     return _current_lang
+
+
+def toggle() -> str:
+    """Toggle between en/zh, save to config, return new language."""
+    return set_language("zh" if _current_lang == "en" else "en")

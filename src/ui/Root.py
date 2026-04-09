@@ -60,7 +60,7 @@ class Root(Tk):
     def _set_language(self, lang: str):
         if lang == i18n.current():
             return
-        i18n.toggle()
+        i18n.set_language(lang)
         self._refresh_language()
 
     def _refresh_language(self):

@@ -8,6 +8,7 @@ _BRIGHTNESS_REC_KEYS = {"PQ": "brightness_rec_pq", "HLG": "brightness_rec_hlg"}
 
 
 def validateBrightness(newBrightness):
+    """Validate-only: does NOT mutate config (read happens at conversion time)."""
     if not newBrightness.isdigit() and newBrightness != '':
         return False
     if newBrightness == '':
@@ -15,7 +16,6 @@ def validateBrightness(newBrightness):
     value = int(newBrightness)
     if value < 1 or value > 10000:
         return False
-    config.targetBrightness = value
     return True
 
 
@@ -29,22 +29,22 @@ class BrightnessOption(Frame):
 
         self.target_brightness_var = tkinter.StringVar()
         self.target_brightness_var.set(config.targetBrightness)
-        validate_brightness_wrapper = (master.register(validateBrightness), '%P')
+        validate_brightness_wrapper = (self.register(validateBrightness), '%P')
         target_brightness_input = Entry(master=self, textvariable=self.target_brightness_var, validate="key",
                                         validatecommand=validate_brightness_wrapper)
         target_brightness_input.grid(row=0, column=1, sticky=tkinter.EW)
 
         # Recommendation label (dynamic, follows EOTF selection)
-        rec_key = _BRIGHTNESS_REC_KEYS.get(config.eotf, "brightness_rec_pq")
+        rec_key = _BRIGHTNESS_REC_KEYS.get(config.eotf.upper(), "brightness_rec_pq")
         self._rec_label = Label(master=self, text=i18n.get(rec_key))
         self._rec_label.grid(row=1, column=0, columnspan=2, sticky=tkinter.W, pady=(8, 0))
 
     def update_recommendation(self, eotf: str = "PQ"):
         """Update the recommendation text based on EOTF selection."""
-        rec_key = _BRIGHTNESS_REC_KEYS.get(eotf, "brightness_rec_pq")
+        rec_key = _BRIGHTNESS_REC_KEYS.get(eotf.upper(), "brightness_rec_pq")
         self._rec_label.configure(text=i18n.get(rec_key))
 
     def refresh_language(self):
         self._label.configure(text=i18n.get("brightness_label"))
-        rec_key = _BRIGHTNESS_REC_KEYS.get(config.eotf, "brightness_rec_pq")
+        rec_key = _BRIGHTNESS_REC_KEYS.get(config.eotf.upper(), "brightness_rec_pq")
         self._rec_label.configure(text=i18n.get(rec_key))
