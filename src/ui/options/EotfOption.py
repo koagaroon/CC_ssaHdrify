@@ -9,8 +9,9 @@ _EOTF_DESC_KEYS = {"PQ": "eotf_pq_desc", "HLG": "eotf_hlg_desc"}
 
 
 class EotfOption(Frame):
-    def __init__(self, master=None, **kwargs):
+    def __init__(self, master=None, on_eotf_change=None, **kwargs):
         super().__init__(master, **kwargs)
+        self._on_eotf_change = on_eotf_change
         self.columnconfigure(1, weight=1)
 
         self._label = Label(master=self, text=i18n.get("eotf_label"))
@@ -38,6 +39,9 @@ class EotfOption(Frame):
         config.eotf = selected
         desc_key = _EOTF_DESC_KEYS.get(selected, "eotf_pq_desc")
         self._desc.configure(text=i18n.get(desc_key))
+        # Notify sibling brightness frame via callback
+        if self._on_eotf_change:
+            self._on_eotf_change(selected)
 
     def refresh_language(self):
         self._label.configure(text=i18n.get("eotf_label"))

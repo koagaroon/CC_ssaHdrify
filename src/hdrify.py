@@ -9,6 +9,8 @@ from io import StringIO
 
 # Suppress colour-science optional dependency warnings (scipy, matplotlib not needed)
 warnings.filterwarnings("ignore", message=".*related API features are not available.*")
+# Suppress numpy RuntimeWarning from HLG transfer function boundary (np.log on edge values)
+warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*invalid value encountered in log.*")
 
 import ass as ssa
 import numpy as np

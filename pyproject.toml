@@ -1,0 +1,5 @@
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore::RuntimeWarning:colour",
+    "ignore:.*related API features are not available.*:UserWarning",
+]

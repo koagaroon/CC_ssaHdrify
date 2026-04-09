@@ -51,6 +51,14 @@ _STRINGS: dict[str, dict[str, str]] = {
     },
     "ass_filter": {"en": "ASS files", "zh": "ASS \u5b57\u5e55\u6587\u4ef6"},
     "all_filter": {"en": "all files", "zh": "\u6240\u6709\u6587\u4ef6"},
+    "brightness_rec_pq": {
+        "en": "Recommended: 100\u2013300 nits (BT.2408 standard: 203)",
+        "zh": "\u63a8\u8350\uff1a100\u2013300 \u5c3c\u7279\uff08BT.2408 \u6807\u51c6\u503c 203\uff09",
+    },
+    "brightness_rec_hlg": {
+        "en": "Recommended: 100\u2013400 nits (display-adaptive)",
+        "zh": "\u63a8\u8350\uff1a100\u2013400 \u5c3c\u7279\uff08\u968f\u663e\u793a\u5668\u81ea\u9002\u5e94\uff09",
+    },
 }
 
 SUPPORTED_LANGUAGES = ("en", "zh")

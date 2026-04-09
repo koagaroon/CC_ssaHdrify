@@ -4,6 +4,8 @@ from tkinter.ttk import Frame, Label, Entry
 import i18n
 from conversion_setting import config
 
+_BRIGHTNESS_REC_KEYS = {"PQ": "brightness_rec_pq", "HLG": "brightness_rec_hlg"}
+
 
 def validateBrightness(newBrightness):
     if not newBrightness.isdigit() and newBrightness != '':
@@ -32,5 +34,17 @@ class BrightnessOption(Frame):
                                         validatecommand=validate_brightness_wrapper)
         target_brightness_input.grid(row=0, column=1, sticky=tkinter.EW)
 
+        # Recommendation label (dynamic, follows EOTF selection)
+        rec_key = _BRIGHTNESS_REC_KEYS.get(config.eotf, "brightness_rec_pq")
+        self._rec_label = Label(master=self, text=i18n.get(rec_key))
+        self._rec_label.grid(row=1, column=0, columnspan=2, sticky=tkinter.W, pady=(2, 0))
+
+    def update_recommendation(self, eotf: str = "PQ"):
+        """Update the recommendation text based on EOTF selection."""
+        rec_key = _BRIGHTNESS_REC_KEYS.get(eotf, "brightness_rec_pq")
+        self._rec_label.configure(text=i18n.get(rec_key))
+
     def refresh_language(self):
         self._label.configure(text=i18n.get("brightness_label"))
+        rec_key = _BRIGHTNESS_REC_KEYS.get(config.eotf, "brightness_rec_pq")
+        self._rec_label.configure(text=i18n.get(rec_key))
