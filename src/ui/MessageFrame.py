@@ -1,6 +1,6 @@
 import queue
 import tkinter
-from tkinter.ttk import LabelFrame
+from tkinter.ttk import LabelFrame, Scrollbar
 
 
 class QueueStream:
@@ -28,8 +28,16 @@ class MessageFrame(LabelFrame):
         self.messageStream = QueueStream()
         self._queue = self.messageStream._queue
         self.callbackId = ""
-        self.text = tkinter.Text(master=self)
-        self.text.pack(expand=True, fill='both')
+
+        self._container = tkinter.Frame(master=self)
+        self._container.pack(expand=True, fill='both')
+
+        self.text = tkinter.Text(master=self._container, wrap='word')
+        self._scrollbar = Scrollbar(self._container, orient='vertical', command=self.text.yview)
+        self.text.configure(yscrollcommand=self._scrollbar.set)
+
+        self._scrollbar.pack(side='right', fill='y')
+        self.text.pack(side='left', expand=True, fill='both')
 
         self.updateText()
 

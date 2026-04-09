@@ -21,8 +21,10 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,
+    a.datas,
+    a.zipfiles,
     [],
-    exclude_binaries=True,
     name='ssa hdrify',
     debug=False,
     bootloader_ignore_signals=False,
@@ -36,17 +38,8 @@ exe = EXE(
     entitlements_file=None,
     icon=[os.path.join(SPECPATH, 'hdr.icns')],
 )
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.datas,
-    strip=False,
-    upx=False,
-    upx_exclude=[],
-    name='ssa_hdrify',
-)
 app = BUNDLE(
-    coll,
+    exe,
     name='ssa hdrify.app',
     icon=os.path.join(SPECPATH, 'hdr.icns'),
     bundle_identifier='com.gky99.ssa-hdrify',

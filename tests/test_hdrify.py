@@ -65,6 +65,21 @@ def test_regex_ignores_7digit_color():
     assert event.text == r"{\1c&HFFFFFFF&}Hello"
 
 
+# --- HLG tests ---
+
+def test_hlg_conversion_in_range():
+    """HLG conversion should produce valid RGB values."""
+    result = sRgbToHdr((255, 255, 255), target_brightness=100, eotf="HLG")
+    assert all(0 <= c <= 255 for c in result)
+
+
+def test_hlg_differs_from_pq():
+    """HLG and PQ should produce different output for same input."""
+    pq = sRgbToHdr((200, 100, 50), target_brightness=100, eotf="PQ")
+    hlg = sRgbToHdr((200, 100, 50), target_brightness=100, eotf="HLG")
+    assert pq != hlg
+
+
 def test_regex_ignores_short_color():
     """Colors shorter than 6 hex digits should NOT be matched."""
     event = FakeEvent(r"{\1c&HFF&}Hello")

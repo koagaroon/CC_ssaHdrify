@@ -19,8 +19,10 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,
+    a.datas,
+    a.zipfiles,
     [],
-    exclude_binaries=True,
     name='ssa hdrify',
     debug=False,
     bootloader_ignore_signals=False,
@@ -29,13 +31,4 @@ exe = EXE(
     console=False,
     disable_windowed_traceback=False,
     icon=os.path.join(SPECPATH, 'hdr.ico'),
-)
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.datas,
-    strip=False,
-    upx=False,
-    upx_exclude=[],
-    name='ssa_hdrify',
 )

@@ -3,28 +3,29 @@ import threading
 from tkinter import filedialog, messagebox
 from tkinter.ttk import Button
 
+import i18n
 from conversion_setting import config
 from hdrify import ssaProcessor
 
 
 class FileSelectionButton(Button):
     def __init__(self, master, **kwargs):
-        super().__init__(master, text="Select file and convert", **kwargs)
+        super().__init__(master, text=i18n.get("select_convert"), **kwargs)
         self.configure(command=self._on_click)
         self._worker_thread = None
         self._cancel_event = threading.Event()
 
     def _on_click(self) -> None:
         """Open file dialog and convert selected subtitle files."""
-        files = filedialog.askopenfilenames(filetypes=[('ASS files', '.ass .ssa'),
-                                                       ('all files', '.*')])
+        files = filedialog.askopenfilenames(filetypes=[(i18n.get("ass_filter"), '.ass .ssa'),
+                                                       (i18n.get("all_filter"), '.*')])
         if not files:
             return
 
         brightness_str = self.master.brightness_frame.target_brightness_var.get()
         if not brightness_str or not brightness_str.isdigit() or int(brightness_str) < 1:
-            messagebox.showerror("Invalid brightness",
-                                 "Please enter a target brightness value (1\u201310000 nits).")
+            messagebox.showerror(i18n.get("invalid_brightness"),
+                                 i18n.get("brightness_error_msg"))
             return
 
         self.configure(state='disabled')
@@ -35,10 +36,10 @@ class FileSelectionButton(Button):
             try:
                 for f in files:
                     if self._cancel_event.is_set():
-                        print("Conversion cancelled.")
+                        print(i18n.get("cancelled"))
                         break
-                    print(f"Converting file: {f}")
-                    ssaProcessor(f, target_brightness=brightness)
+                    print(i18n.get("converting").format(f))
+                    ssaProcessor(f, target_brightness=brightness, eotf=config.eotf)
             finally:
                 # 双重防御：
                 # 1. self.after() 本身在 Tcl 解释器关闭后会抛出 TclError

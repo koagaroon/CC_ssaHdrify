@@ -1,7 +1,8 @@
 import platform
 from tkinter import NSEW, Tk, messagebox
-from tkinter.ttk import Style
+from tkinter.ttk import Style, Button
 
+import i18n
 from ui.MessageFrame import MessageFrame
 from ui.OptionFrame import OptionFrame
 
@@ -16,29 +17,57 @@ def setStyle():
 class Root(Tk):
     def __init__(self):
         super().__init__()
-        self.title("Convert subtitle from SDR to HDR colorspace")
+        self.title(i18n.get("window_title"))
         setStyle()
-        self.wm_minsize(640, 480)
-        self.rowconfigure(0, weight=1)
-        self.rowconfigure(1, weight=1)
+
+        # Window sizing: 1/4 screen area, centered
+        screen_w = self.winfo_screenwidth()
+        screen_h = self.winfo_screenheight()
+        win_w = screen_w // 2
+        win_h = screen_h // 2
+        x = (screen_w - win_w) // 2
+        y = (screen_h - win_h) // 2
+        self.geometry(f"{win_w}x{win_h}+{x}+{y}")
+        self.wm_minsize(640, 400)
+
+        self.rowconfigure(0, weight=0)  # language button row
+        self.rowconfigure(1, weight=0)  # options
+        self.rowconfigure(2, weight=1)  # message (fills remaining space)
         self.columnconfigure(0, weight=1)
 
+        # Language toggle button (top-right)
+        lang_label = "EN" if i18n.current() == "zh" else "\u4e2d\u6587"
+        self._lang_btn = Button(self, text=lang_label, width=6, command=self._toggle_language)
+        self._lang_btn.grid(row=0, column=0, sticky="ne", padx=5, pady=(5, 0))
+
         # Option frame
-        self.options_frame = OptionFrame(master=self, text="Options")
-        self.options_frame.grid(row=0, sticky="new", padx=5, pady=5)
+        self.options_frame = OptionFrame(master=self, text=i18n.get("options"))
+        self.options_frame.grid(row=1, sticky="new", padx=5, pady=5)
 
         # Message frame
-        self.textFrame = MessageFrame(master=self, text="Message", borderwidth=1)
-        self.textFrame.grid(row=1, sticky=NSEW, padx=5, pady=5)
+        self.textFrame = MessageFrame(master=self, text=i18n.get("message"), borderwidth=1)
+        self.textFrame.grid(row=2, sticky=NSEW, padx=5, pady=5)
 
         self.protocol("WM_DELETE_WINDOW", self._on_close)
+
+    def _toggle_language(self):
+        i18n.toggle()
+        self._refresh_language()
+
+    def _refresh_language(self):
+        self.title(i18n.get("window_title"))
+        lang_label = "EN" if i18n.current() == "zh" else "\u4e2d\u6587"
+        self._lang_btn.configure(text=lang_label)
+        self.options_frame.configure(text=i18n.get("options"))
+        self.textFrame.configure(text=i18n.get("message"))
+        self.options_frame.refresh_language()
 
     def _on_close(self):
         convert_btn = self.options_frame.select_file_button
         if convert_btn.is_converting:
             if messagebox.askyesno(
-                "Conversion in progress",
-                "A conversion is still running.\nWait for it to finish before closing?"
+                i18n.get("confirm_close_title"),
+                i18n.get("confirm_close_msg"),
             ):
                 self.after(200, self._on_close)
                 return

@@ -10,13 +10,17 @@ import ass as ssa
 import numpy as np
 from charset_normalizer import from_bytes
 from colour import RGB_Colourspace
-from colour.models import eotf_inverse_BT2100_PQ, sRGB_to_XYZ, XYZ_to_xyY, xyY_to_XYZ, XYZ_to_RGB, \
-    RGB_COLOURSPACE_BT2020, eotf_BT2100_PQ
+from colour.models import (
+    eotf_inverse_BT2100_PQ, eotf_BT2100_PQ,
+    eotf_inverse_BT2100_HLG, eotf_BT2100_HLG,
+    sRGB_to_XYZ, XYZ_to_xyY, xyY_to_XYZ, XYZ_to_RGB,
+    RGB_COLOURSPACE_BT2020,
+)
 
 from conversion_setting import config
 
 COLOURSPACE_BT2100_PQ = RGB_Colourspace(
-    name='COLOURSPACE_BT2100',
+    name='COLOURSPACE_BT2100_PQ',
     primaries=RGB_COLOURSPACE_BT2020.primaries,
     whitepoint=RGB_COLOURSPACE_BT2020.whitepoint,
     matrix_RGB_to_XYZ=RGB_COLOURSPACE_BT2020.matrix_RGB_to_XYZ,
@@ -24,10 +28,23 @@ COLOURSPACE_BT2100_PQ = RGB_Colourspace(
     cctf_encoding=eotf_inverse_BT2100_PQ,
     cctf_decoding=eotf_BT2100_PQ,
 )
-"""HDR color space on display side."""
+"""HDR color space — PQ (Perceptual Quantizer, ST 2084)."""
+
+COLOURSPACE_BT2100_HLG = RGB_Colourspace(
+    name='COLOURSPACE_BT2100_HLG',
+    primaries=RGB_COLOURSPACE_BT2020.primaries,
+    whitepoint=RGB_COLOURSPACE_BT2020.whitepoint,
+    matrix_RGB_to_XYZ=RGB_COLOURSPACE_BT2020.matrix_RGB_to_XYZ,
+    matrix_XYZ_to_RGB=RGB_COLOURSPACE_BT2020.matrix_XYZ_to_RGB,
+    cctf_encoding=eotf_inverse_BT2100_HLG,
+    cctf_decoding=eotf_BT2100_HLG,
+)
+"""HDR color space — HLG (Hybrid Log-Gamma, ARIB STD-B67)."""
+
+_COLOURSPACES = {"PQ": COLOURSPACE_BT2100_PQ, "HLG": COLOURSPACE_BT2100_HLG}
 
 
-def sRgbToHdr(source: tuple[int, int, int], target_brightness: int | None = None) -> tuple[int, int, int]:
+def sRgbToHdr(source: tuple[int, int, int], target_brightness: int | None = None, eotf: str = "PQ") -> tuple[int, int, int]:
     """
     Convert RGB color in SDR color space to HDR color space.
 
@@ -63,23 +80,24 @@ def sRgbToHdr(source: tuple[int, int, int], target_brightness: int | None = None
     target_luminance = xyY_sdr_color[2] * srgb_brightness
     xyY_hdr_color[2] = target_luminance
 
-    output = XYZ_to_RGB(xyY_to_XYZ(xyY_hdr_color), colourspace=COLOURSPACE_BT2100_PQ, apply_cctf_encoding=True)
+    colourspace = _COLOURSPACES.get(eotf.upper(), COLOURSPACE_BT2100_PQ)
+    output = XYZ_to_RGB(xyY_to_XYZ(xyY_hdr_color), colourspace=colourspace, apply_cctf_encoding=True)
 
     output = np.clip(np.round(output * 255), 0, 255)
 
     return (int(output[0]), int(output[1]), int(output[2]))
 
 
-def transformColour(colour, target_brightness: int | None = None):
+def transformColour(colour, target_brightness: int | None = None, eotf: str = "PQ"):
     rgb = (colour.r, colour.g, colour.b)
-    transformed = sRgbToHdr(rgb, target_brightness)
+    transformed = sRgbToHdr(rgb, target_brightness, eotf=eotf)
     # TODO process alpha channel in styles
     colour.r = transformed[0]
     colour.g = transformed[1]
     colour.b = transformed[2]
 
 
-def transformEvent(event, target_brightness: int | None = None):
+def transformEvent(event, target_brightness: int | None = None, eotf: str = "PQ"):
     def _replaceColor(match):
         prefix = match.group(1)
         hex_colour = match.group(2)
@@ -91,13 +109,13 @@ def transformEvent(event, target_brightness: int | None = None):
         g = int(hex_colour[2:4], 16)
         r = int(hex_colour[4:6], 16)
 
-        (r, g, b) = sRgbToHdr((r, g, b), target_brightness)
+        (r, g, b) = sRgbToHdr((r, g, b), target_brightness, eotf=eotf)
         return prefix + alpha + '{:02x}{:02x}{:02x}'.format(b, g, r)
 
     event.text = re.sub(r'(\\[0-9]?c&H)([0-9a-fA-F]{6}|[0-9a-fA-F]{8})(?=[&})\\])', _replaceColor, event.text)
 
 
-def ssaProcessor(fname: str, target_brightness: int | None = None):
+def ssaProcessor(fname: str, target_brightness: int | None = None, eotf: str = "PQ"):
     if not os.path.isfile(fname):
         print(f'Missing file: {fname}')
         return
@@ -144,13 +162,13 @@ def ssaProcessor(fname: str, target_brightness: int | None = None):
         return
 
     for s in sub.styles:
-        transformColour(s.primary_color, target_brightness)
-        transformColour(s.secondary_color, target_brightness)
-        transformColour(s.outline_color, target_brightness)
-        transformColour(s.back_color, target_brightness)
+        transformColour(s.primary_color, target_brightness, eotf=eotf)
+        transformColour(s.secondary_color, target_brightness, eotf=eotf)
+        transformColour(s.outline_color, target_brightness, eotf=eotf)
+        transformColour(s.back_color, target_brightness, eotf=eotf)
 
     for e in sub.events:
-        transformEvent(e, target_brightness)
+        transformEvent(e, target_brightness, eotf=eotf)
 
     output_fname = os.path.splitext(fname)[0] + '.hdr.ass'
     tmp_fname = output_fname + '.tmp'
