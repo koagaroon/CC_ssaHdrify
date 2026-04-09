@@ -1,6 +1,6 @@
 import platform
-from tkinter import NSEW, Tk, messagebox
-from tkinter.ttk import Style, Button
+from tkinter import NSEW, Menu, Tk, messagebox
+from tkinter.ttk import Style, Menubutton
 
 import i18n
 from ui.MessageFrame import MessageFrame
@@ -35,10 +35,13 @@ class Root(Tk):
         self.rowconfigure(2, weight=1)  # message (fills remaining space)
         self.columnconfigure(0, weight=1)
 
-        # Language toggle button (top-right)
-        lang_label = "EN" if i18n.current() == "zh" else "\u4e2d\u6587"
-        self._lang_btn = Button(self, text=lang_label, width=6, command=self._toggle_language)
-        self._lang_btn.grid(row=0, column=0, sticky="ne", padx=5, pady=(5, 0))
+        # Language menu button (top-left)
+        self._lang_btn = Menubutton(self, text=self._lang_btn_label(), width=8)
+        self._lang_menu = Menu(self._lang_btn, tearoff=0)
+        self._lang_menu.add_command(label="English", command=lambda: self._set_language("en"))
+        self._lang_menu.add_command(label="\u4e2d\u6587", command=lambda: self._set_language("zh"))
+        self._lang_btn["menu"] = self._lang_menu
+        self._lang_btn.grid(row=0, column=0, sticky="nw", padx=5, pady=(5, 0))
 
         # Option frame
         self.options_frame = OptionFrame(master=self, text=i18n.get("options"))
@@ -50,14 +53,19 @@ class Root(Tk):
 
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
-    def _toggle_language(self):
+    @staticmethod
+    def _lang_btn_label() -> str:
+        return "\u4e2d\u6587" if i18n.current() == "zh" else "English"
+
+    def _set_language(self, lang: str):
+        if lang == i18n.current():
+            return
         i18n.toggle()
         self._refresh_language()
 
     def _refresh_language(self):
         self.title(i18n.get("window_title"))
-        lang_label = "EN" if i18n.current() == "zh" else "\u4e2d\u6587"
-        self._lang_btn.configure(text=lang_label)
+        self._lang_btn.configure(text=self._lang_btn_label())
         self.options_frame.configure(text=i18n.get("options"))
         self.textFrame.configure(text=i18n.get("message"))
         self.options_frame.refresh_language()

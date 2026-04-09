@@ -22,8 +22,16 @@ class EotfOption(Frame):
         self._dropdown.bind("<<ComboboxSelected>>", self._on_select)
 
         self._desc = Label(master=self, text=i18n.get("eotf_pq_desc"),
-                           wraplength=300, foreground="gray")
-        self._desc.grid(row=1, column=0, columnspan=2, sticky=tkinter.W, pady=(2, 0))
+                           wraplength=1, foreground="gray")
+        self._desc.grid(row=1, column=0, columnspan=2, sticky=tkinter.EW, pady=(2, 0))
+        # Dynamically adjust wraplength to match frame width
+        self.bind("<Configure>", self._update_wraplength)
+
+    def _update_wraplength(self, _event=None):
+        # Set wraplength to frame width minus small padding
+        width = self.winfo_width() - 10
+        if width > 50:
+            self._desc.configure(wraplength=width)
 
     def _on_select(self, _event=None):
         selected = self._dropdown.get()
