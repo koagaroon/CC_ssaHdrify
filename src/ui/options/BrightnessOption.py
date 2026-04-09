@@ -37,7 +37,7 @@ class BrightnessOption(Frame):
         # Recommendation label (dynamic, follows EOTF selection)
         rec_key = _BRIGHTNESS_REC_KEYS.get(config.eotf, "brightness_rec_pq")
         self._rec_label = Label(master=self, text=i18n.get(rec_key))
-        self._rec_label.grid(row=1, column=0, columnspan=2, sticky=tkinter.W, pady=(2, 0))
+        self._rec_label.grid(row=1, column=0, columnspan=2, sticky=tkinter.W, pady=(8, 0))
 
     def update_recommendation(self, eotf: str = "PQ"):
         """Update the recommendation text based on EOTF selection."""

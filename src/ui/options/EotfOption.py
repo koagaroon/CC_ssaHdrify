@@ -24,7 +24,7 @@ class EotfOption(Frame):
 
         self._desc = Label(master=self, text=i18n.get("eotf_pq_desc"),
                            wraplength=1, foreground="gray")
-        self._desc.grid(row=1, column=0, columnspan=2, sticky=tkinter.EW, pady=(2, 0))
+        self._desc.grid(row=1, column=0, columnspan=2, sticky=tkinter.EW, pady=(8, 0))
         # Dynamically adjust wraplength to match frame width
         self.bind("<Configure>", self._update_wraplength)
 
@@ -48,3 +48,5 @@ class EotfOption(Frame):
         selected = self._dropdown.get()
         desc_key = _EOTF_DESC_KEYS.get(selected, "eotf_pq_desc")
         self._desc.configure(text=i18n.get(desc_key))
+        # Force wraplength recalculation after language change
+        self.after(50, self._update_wraplength)
