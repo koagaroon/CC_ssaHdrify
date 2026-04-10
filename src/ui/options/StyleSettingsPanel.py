@@ -23,6 +23,8 @@ class StyleSettingsPanel(LabelFrame):
         self._expanded = False
         self._enabled = True
         self._children_widgets: list = []
+        self._primary_color_customized = False
+        self._outline_color_customized = False
 
         # Toggle button (▶ / ▼)
         self._toggle_btn = Button(self, text="\u25b6 " + i18n.get("advanced_style"),
@@ -50,13 +52,13 @@ class StyleSettingsPanel(LabelFrame):
         # --- Row 1: Primary color + Outline color ---
         self._lbl_color = Label(self._content, text=i18n.get("primary_color_label"))
         self._lbl_color.grid(row=1, column=0, sticky="w", padx=(4, 2), pady=2)
-        self._color_btn = Button(self._content, text="\u25a0 White", width=10,
+        self._color_btn = Button(self._content, text=f"\u25a0 {i18n.get('color_default_white')}", width=10,
                                  command=lambda: self._pick_color("primary_color"))
         self._color_btn.grid(row=1, column=1, padx=2, pady=2, sticky="w")
 
         self._lbl_outline = Label(self._content, text=i18n.get("outline_color_label"))
         self._lbl_outline.grid(row=1, column=2, sticky="w", padx=(8, 2), pady=2)
-        self._outline_btn = Button(self._content, text="\u25a0 Black", width=10,
+        self._outline_btn = Button(self._content, text=f"\u25a0 {i18n.get('color_default_black')}", width=10,
                                    command=lambda: self._pick_color("outline_color"))
         self._outline_btn.grid(row=1, column=3, padx=2, pady=2, sticky="w")
 
@@ -153,9 +155,13 @@ class StyleSettingsPanel(LabelFrame):
         ass_color = f"&H00{b.upper()}{g.upper()}{r.upper()}"
         setattr(config.style, attr, ass_color)
 
-        # Update button label with color name
+        # Update button label with hex color and mark as customized
         btn = self._color_btn if attr == "primary_color" else self._outline_btn
         btn.configure(text=f"\u25a0 #{hex_rgb}")
+        if attr == "primary_color":
+            self._primary_color_customized = True
+        else:
+            self._outline_color_customized = True
 
     def refresh_language(self) -> None:
         arrow = "\u25bc" if self._expanded else "\u25b6"
@@ -170,3 +176,7 @@ class StyleSettingsPanel(LabelFrame):
         self._lbl_sh.configure(text=i18n.get("shadow_depth_label"))
         self._lbl_fps.configure(text=i18n.get("fps_label"))
         self._fps_desc.configure(text=i18n.get("fps_desc"))
+        if not self._primary_color_customized:
+            self._color_btn.configure(text=f"\u25a0 {i18n.get('color_default_white')}")
+        if not self._outline_color_customized:
+            self._outline_btn.configure(text=f"\u25a0 {i18n.get('color_default_black')}")

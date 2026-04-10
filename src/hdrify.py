@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
+import tempfile
 import warnings
 from io import StringIO
 
@@ -76,6 +78,8 @@ def sRgbToHdr(source: tuple[int, int, int], target_brightness: int | None = None
         return (0, 0, 0)
 
     srgb_brightness = target_brightness if target_brightness is not None else config.targetBrightness
+    if srgb_brightness <= 0:
+        raise ValueError(f"target_brightness must be positive, got {srgb_brightness}")
 
     normalized_sdr_color = np.array(source) / 255
     xyY_sdr_color = XYZ_to_xyY(sRGB_to_XYZ(normalized_sdr_color, apply_cctf_decoding=True))
@@ -95,7 +99,7 @@ def sRgbToHdr(source: tuple[int, int, int], target_brightness: int | None = None
 
     output = np.clip(np.round(output * 255), 0, 255)
 
-    return tuple(int(c) for c in output)
+    return (int(output[0]), int(output[1]), int(output[2]))
 
 
 def transformColour(colour, target_brightness: int | None = None, eotf: str = "PQ"):
@@ -108,6 +112,9 @@ def transformColour(colour, target_brightness: int | None = None, eotf: str = "P
 
 
 def transformEvent(event, target_brightness: int | None = None, eotf: str = "PQ"):
+    if event.text is None:
+        return
+
     def _replaceColor(match):
         prefix = match.group(1)
         hex_colour = match.group(2)
@@ -122,7 +129,7 @@ def transformEvent(event, target_brightness: int | None = None, eotf: str = "PQ"
         (r, g, b) = sRgbToHdr((r, g, b), target_brightness, eotf=eotf)
         return prefix + alpha + '{:02x}{:02x}{:02x}'.format(b, g, r)
 
-    event.text = re.sub(r'(\\[0-9]?c&H)([0-9a-fA-F]{6}|[0-9a-fA-F]{8})(?=[&})\\])', _replaceColor, event.text)
+    event.text = re.sub(r'(\\[0-9]?c&H)([0-9a-fA-F]{6}|[0-9a-fA-F]{8})(?=[&}),\\])', _replaceColor, event.text)
 
 
 _MAX_SUBTITLE_SIZE = 50 * 1024 * 1024  # 50 MB — generous for any real subtitle
@@ -179,9 +186,15 @@ def _detect_and_decode(fname: str) -> str | None:
         if content is None:
             print(i18n.get("msg_detect_encoding_fail").format(fname))
             return None
-        # ASCII/UTF-8 are never ambiguous — only reject low coherence for
-        # encodings where mis-detection could reinterpret bytes dangerously
-        safe_encodings = {"ascii", "utf-8", "utf_8"}
+        # ASCII/UTF-8 and Chinese CJK encodings are unambiguous —
+        # only reject low coherence for encodings where mis-detection could
+        # reinterpret bytes dangerously.
+        # Note: .replace("-", "_") normalizes encoding names before lookup.
+        safe_encodings = {
+            "ascii", "utf_8",
+            "gb18030", "gb2312", "gbk",
+            "big5",
+        }
         if content.coherence < 0.5 and content.encoding.lower().replace("-", "_") not in safe_encodings:
             print(i18n.get("msg_low_confidence").format(fname, content.encoding, f"{content.coherence:.1%}"))
             return None
@@ -192,21 +205,33 @@ def _detect_and_decode(fname: str) -> str | None:
 
 def _write_ass_output(sub, output_fname: str):
     """Write parsed ASS document to *output_fname* atomically (temp + replace)."""
-    tmp_fname = output_fname + '.tmp'
+    output_dir = os.path.dirname(os.path.abspath(output_fname))
+    tmp_fname = None
     try:
-        with open(tmp_fname, 'w', encoding='utf_8_sig', newline='\n') as f:
+        with tempfile.NamedTemporaryFile(
+            mode='w', encoding='utf_8_sig', newline='\n',
+            dir=output_dir, prefix='.tmp_', suffix='.ass', delete=False
+        ) as f:
+            tmp_fname = f.name
             sub.dump_file(f)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp_fname, output_fname)
+        try:
+            os.replace(tmp_fname, output_fname)
+        except OSError:
+            # Cross-device rename (e.g. network drive); fall back to
+            # copy+delete (NOT atomic — partial writes possible on crash).
+            shutil.copy2(tmp_fname, output_fname)
+            os.remove(tmp_fname)
         print(i18n.get("msg_wrote").format(output_fname))
     except Exception as e:
         print(i18n.get("msg_write_error").format(output_fname, e))
-        if os.path.exists(tmp_fname):
+        if tmp_fname is not None and os.path.exists(tmp_fname):
             try:
                 os.remove(tmp_fname)
             except OSError:
                 pass
+        raise
 
 
 def _transform_and_write(sub, fname: str, target_brightness: int | None,
@@ -251,7 +276,10 @@ def ssaProcessor(fname: str, target_brightness: int | None = None, eotf: str = "
         print(i18n.get("msg_parse_error").format(fname, e))
         return
 
-    _transform_and_write(sub, fname, target_brightness, eotf, output_path, cancel_event)
+    try:
+        _transform_and_write(sub, fname, target_brightness, eotf, output_path, cancel_event)
+    except Exception as e:
+        print(i18n.get("msg_convert_error").format(fname, e))
 
 
 def srtSubProcessor(fname: str, target_brightness: int | None = None, eotf: str = "PQ",
@@ -286,4 +314,7 @@ def srtSubProcessor(fname: str, target_brightness: int | None = None, eotf: str 
         print(i18n.get("msg_parse_error").format(fname, e))
         return
 
-    _transform_and_write(sub, fname, target_brightness, eotf, output_path, cancel_event)
+    try:
+        _transform_and_write(sub, fname, target_brightness, eotf, output_path, cancel_event)
+    except Exception as e:
+        print(i18n.get("msg_convert_error").format(fname, e))

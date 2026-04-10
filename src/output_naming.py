@@ -3,6 +3,14 @@
 from __future__ import annotations
 
 import os
+import platform
+
+# Windows reserved device names (case-insensitive, with or without extension)
+_WIN_RESERVED = frozenset({
+    "CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$",
+    *(f"COM{i}" for i in range(1, 10)),
+    *(f"LPT{i}" for i in range(1, 10)),
+})
 
 # Preset templates shown in the UI dropdown
 PRESETS: list[str] = [
@@ -46,6 +54,14 @@ def resolve_output_path(input_path: str, template: str, eotf: str) -> str:
 
     if not os.path.basename(output_name):
         raise ValueError("Template resolves to empty filename")
+
+    # Reject Windows reserved device names (CON.ass, NUL.ass, etc.)
+    # Windows silently strips trailing dots and spaces from filenames,
+    # so "CON .ass" and "CON..ass" are equivalent to "CON.ass".
+    if platform.system() == "Windows":
+        stem = os.path.splitext(os.path.basename(output_name))[0].rstrip(". ").upper()
+        if stem in _WIN_RESERVED:
+            raise ValueError(f"Output filename is a Windows reserved name: {stem}")
 
     result = os.path.normpath(os.path.join(dir_name, output_name))
 

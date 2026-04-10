@@ -24,6 +24,8 @@ class FileSelectionButton(Button):
 
     def _on_click(self) -> None:
         """Open file dialog and convert selected subtitle files."""
+        if self._worker_thread is not None and self._worker_thread.is_alive():
+            return
         files = filedialog.askopenfilenames(filetypes=[
             (i18n.get("subtitle_filter"), '.ass .ssa .srt .sub'),
             (i18n.get("ass_filter"), '.ass .ssa'),
@@ -90,7 +92,7 @@ class FileSelectionButton(Button):
                                      eotf=eotf, output_path=output_path,
                                      cancel_event=self._cancel_event)
             except Exception as exc:
-                print(f"Unexpected error: {exc}")
+                print(i18n.get("msg_unexpected_error").format(exc))
             finally:
                 try:
                     self.after(0, self._restoreButton)

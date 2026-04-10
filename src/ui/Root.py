@@ -53,6 +53,7 @@ class Root(Tk):
         self.textFrame.grid(row=2, sticky=NSEW, padx=5, pady=5)
 
         self._closing = False  # re-entry guard for _on_close
+        self._wait_deadline = 0.0
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
     @staticmethod
@@ -86,7 +87,15 @@ class Root(Tk):
                 self._wait_deadline = time.monotonic() + 30
                 self.after(200, self._wait_and_close)
                 return
-            convert_btn.cancel_and_wait(timeout=0)
+            # No = cancel and close. Set _closing first to block re-entry,
+            # hide window immediately for responsive UX, then signal cancel
+            # and poll until the worker exits (no main-thread blocking).
+            self._closing = True
+            self.withdraw()
+            convert_btn.cancel_and_wait(timeout=0)  # signal only, don't block
+            self._wait_deadline = time.monotonic() + 12
+            self.after(200, self._wait_and_close)
+            return
         self._closing = True
         self.textFrame.stopPolling()
         self.destroy()
@@ -99,6 +108,6 @@ class Root(Tk):
             if time.monotonic() < self._wait_deadline:
                 self.after(200, self._wait_and_close)
                 return
-            self.options_frame.select_file_button.cancel_and_wait(timeout=0)
+            self.options_frame.select_file_button.cancel_and_wait(timeout=2)
         self.textFrame.stopPolling()
         self.destroy()

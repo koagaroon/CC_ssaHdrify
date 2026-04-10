@@ -6,6 +6,7 @@ import tempfile
 
 import pytest
 
+from conftest import make_minimal_ass
 from hdrify import sRgbToHdr, transformEvent, ssaProcessor, srtSubProcessor, _detect_and_decode
 from converter import load_as_ass_text
 from output_naming import resolve_output_path
@@ -99,6 +100,30 @@ def test_no_color_tags_unchanged():
     assert event.text == r"{\b1}No colors here"
 
 
+def test_regex_matches_comma_separated_tags():
+    """Color tag followed by comma (Aegisub multi-tag syntax) should be transformed."""
+    event = FakeEvent(r"{\1c&HFFFFFF,\blur3}Hello")
+    transformEvent(event, target_brightness=100)
+    # Color should be transformed (not left as FFFFFF)
+    assert r"\1c&H" in event.text
+    assert "Hello" in event.text
+    assert "FFFFFF" not in event.text.upper().replace("\\1C&H", "")
+
+
+def test_transform_event_none_text():
+    """Event with text=None (e.g. comment line) should not crash."""
+    event = FakeEvent(None)
+    transformEvent(event, target_brightness=100)
+    assert event.text is None
+
+
+def test_transform_event_empty_text():
+    """Event with empty string text should pass through without error."""
+    event = FakeEvent("")
+    transformEvent(event, target_brightness=100)
+    assert event.text == ""
+
+
 # --- ssaProcessor tests ---
 
 def test_processor_missing_file(capsys):
@@ -110,22 +135,8 @@ def test_processor_missing_file(capsys):
 
 def test_processor_roundtrip(tmp_path):
     """End-to-end: write a minimal ASS file, process it, verify output exists."""
-    minimal_ass = """\
-[Script Info]
-ScriptType: v4.00+
-PlayResX: 1920
-PlayResY: 1080
-
-[V4+ Styles]
-Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,2,2,10,10,10,1
-
-[Events]
-Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-Dialogue: 0,0:00:00.00,0:00:05.00,Default,,0,0,0,,Hello World
-"""
     input_file = tmp_path / "test.ass"
-    input_file.write_text(minimal_ass, encoding="utf-8")
+    input_file.write_text(make_minimal_ass("Hello World"), encoding="utf-8")
 
     ssaProcessor(str(input_file), target_brightness=100)
 
@@ -238,7 +249,6 @@ def test_converter_sub_basic():
 
 def test_converter_unsupported_format():
     """Unsupported format should raise ValueError."""
-    import pytest
     with pytest.raises(ValueError, match="Unsupported subtitle format"):
         load_as_ass_text("data", fmt=".vtt")
 
@@ -393,24 +403,31 @@ def test_output_naming_strips_stacked_tags():
     assert "subtitle.hdr.hdr.ass" not in result
 
 
+def test_output_naming_rejects_windows_reserved(monkeypatch):
+    """Windows reserved names (CON, NUL, etc.) should raise ValueError."""
+    monkeypatch.setattr("output_naming.platform.system", lambda: "Windows")
+    with pytest.raises(ValueError, match="Windows reserved name"):
+        resolve_output_path("/movies/subtitle.srt", "CON.ass", "PQ")
+
+
+def test_output_naming_rejects_conin_dollar(monkeypatch):
+    """CONIN$ and CONOUT$ are also reserved Windows device names."""
+    monkeypatch.setattr("output_naming.platform.system", lambda: "Windows")
+    with pytest.raises(ValueError, match="Windows reserved name"):
+        resolve_output_path("/movies/subtitle.srt", "CONIN$.ass", "PQ")
+
+
+def test_output_naming_rejects_trailing_dot_space(monkeypatch):
+    """Windows strips trailing dots/spaces — 'CON .ass' equals 'CON.ass'."""
+    monkeypatch.setattr("output_naming.platform.system", lambda: "Windows")
+    with pytest.raises(ValueError, match="Windows reserved name"):
+        resolve_output_path("/movies/subtitle.srt", "CON .ass", "PQ")
+
+
 def test_processor_skips_self_overwrite(tmp_path, capsys):
     """Processing should skip when output would overwrite input."""
-    ass_content = """\
-[Script Info]
-ScriptType: v4.00+
-PlayResX: 1920
-PlayResY: 1080
-
-[V4+ Styles]
-Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,2,2,10,10,10,1
-
-[Events]
-Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-Dialogue: 0,0:00:00.00,0:00:05.00,Default,,0,0,0,,Hello World
-"""
     input_file = tmp_path / "test.ass"
-    input_file.write_text(ass_content, encoding="utf-8")
+    input_file.write_text(make_minimal_ass("Hello World"), encoding="utf-8")
     original_content = input_file.read_text(encoding="utf-8")
 
     ssaProcessor(str(input_file), target_brightness=100,
@@ -431,3 +448,109 @@ def test_detect_and_decode_utf32_le_bom(tmp_path):
     result = _detect_and_decode(str(f))
     assert result is not None
     assert "Script Info" in result
+
+
+# --- sRgbToHdr validation tests ---
+
+def test_srgb_to_hdr_invalid_brightness():
+    """Passing brightness <= 0 should raise ValueError, not silently return black."""
+    with pytest.raises(ValueError, match="target_brightness must be positive"):
+        sRgbToHdr((128, 128, 128), target_brightness=0)
+
+
+# --- Cancel event tests ---
+
+def test_processor_cancel_mid_conversion(tmp_path):
+    """Setting cancel_event should stop processing and not produce output."""
+    import threading
+    input_file = tmp_path / "test.ass"
+    input_file.write_text(make_minimal_ass("Cancel Test"), encoding="utf-8")
+    cancel = threading.Event()
+    cancel.set()  # pre-cancelled
+    ssaProcessor(str(input_file), target_brightness=100, cancel_event=cancel)
+    output_file = tmp_path / "test.hdr.ass"
+    assert not output_file.exists(), "Cancelled conversion should not produce output"
+
+
+# --- Write fallback tests ---
+
+def test_write_ass_output_cross_device_fallback(tmp_path, monkeypatch):
+    """When os.replace raises OSError, shutil.copy2 fallback should work."""
+    import ass as ass_lib
+    input_file = tmp_path / "test.ass"
+    input_file.write_text(make_minimal_ass("Fallback Test"), encoding="utf-8")
+    with open(str(input_file), encoding="utf_8_sig") as f:
+        sub = ass_lib.parse(f)
+    # Force os.replace to fail
+    def _fake_replace(src, dst): raise OSError("fake cross-device")
+    monkeypatch.setattr("os.replace", _fake_replace)
+    from hdrify import _write_ass_output
+    output_file = tmp_path / "output.ass"
+    _write_ass_output(sub, str(output_file))
+    assert output_file.exists(), "Fallback write should produce output"
+    content = output_file.read_text(encoding="utf-8-sig")
+    assert "Fallback Test" in content
+
+
+# --- HLG end-to-end tests ---
+
+def test_processor_roundtrip_hlg(tmp_path):
+    """End-to-end: write a minimal ASS file, process with HLG EOTF, verify output exists."""
+    input_file = tmp_path / "test.ass"
+    input_file.write_text(make_minimal_ass("Hello HLG World"), encoding="utf-8")
+
+    ssaProcessor(str(input_file), target_brightness=100, eotf="HLG")
+
+    output_file = tmp_path / "test.hdr.ass"
+    assert output_file.exists(), "Output .hdr.ass file should be created for HLG"
+    output_content = output_file.read_text(encoding="utf-8-sig")
+    assert "Hello HLG World" in output_content
+
+
+# --- Encoding detection tests (extended) ---
+
+def test_detect_and_decode_gbk(tmp_path):
+    """GBK-encoded ASS file (no BOM) should be detected and decoded correctly.
+
+    CJK encodings are in the safe_encodings set so they bypass the coherence
+    threshold (charset_normalizer gives inherently low coherence for CJK).
+    Needs enough Chinese text for charset_normalizer to identify gb18030.
+    """
+    lines = [
+        "[Script Info]",
+        "ScriptType: v4.00+",
+        "PlayResX: 1920",
+        "PlayResY: 1080",
+        "",
+        "[V4+ Styles]",
+        "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
+        "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, "
+        "ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, "
+        "Alignment, MarginL, MarginR, MarginV, Encoding",
+        "Style: Default,\u5fae\u8f6f\u96c5\u9ed1,48,&H00FFFFFF,&H000000FF,"
+        "&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,2,2,10,10,10,1",
+        "",
+        "[Events]",
+        "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
+    ]
+    zh_dialogues = [
+        "\u4eca\u5929\u7684\u5929\u6c14\u771f\u597d\uff0c\u6211\u4eec\u51fa\u53bb\u8d70\u8d70\u5427",
+        "\u8fd9\u90e8\u7535\u5f71\u7684\u753b\u9762\u8d28\u91cf\u975e\u5e38\u51fa\u8272\uff0c\u5c24\u5176\u662f\u8272\u5f69\u8868\u73b0",
+        "\u5b57\u5e55\u7ec4\u8f9b\u82e6\u4e86\uff0c\u611f\u8c22\u4f60\u4eec\u7684\u4ed8\u51fa",
+        "\u8bf7\u786e\u8ba4\u5b57\u5e55\u663e\u793a\u662f\u5426\u6b63\u5e38\uff0c\u5982\u6709\u95ee\u9898\u8bf7\u53cd\u9988",
+        "\u4e0b\u4e00\u96c6\u66f4\u52a0\u7cbe\u5f69\uff0c\u656c\u8bf7\u671f\u5f85",
+        "\u8fd9\u662f\u4e00\u6bb5\u7528\u4e8e\u6d4b\u8bd5\u7f16\u7801\u68c0\u6d4b\u7684\u4e2d\u6587\u5b57\u5e55\u6587\u672c",
+        "\u652f\u6301\u7b80\u4f53\u4e2d\u6587\u548c\u7e41\u4f53\u4e2d\u6587\u7684\u7f16\u7801\u8f6c\u6362",
+        "\u9ad8\u52a8\u6001\u8303\u56f4\u5b57\u5e55\u8272\u5f69\u7a7a\u95f4\u8f6c\u6362\u5de5\u5177",
+    ]
+    for i, text in enumerate(zh_dialogues):
+        start = f"0:{i:02d}:00.00"
+        end = f"0:{i:02d}:05.00"
+        lines.append(f"Dialogue: 0,{start},{end},Default,,0,0,0,,{text}")
+    content = "\n".join(lines) + "\n"
+    f = tmp_path / "gbk.ass"
+    f.write_bytes(content.encode("gbk"))
+    result = _detect_and_decode(str(f))
+    assert result is not None, "GBK file should decode successfully"
+    assert "Script Info" in result
+    assert "\u4e2d\u6587" in result

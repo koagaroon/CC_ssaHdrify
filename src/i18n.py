@@ -101,6 +101,8 @@ _STRINGS: dict[str, dict[str, str]] = {
     "font_size_label": {"en": "Size:", "zh": "字号："},
     "primary_color_label": {"en": "Color:", "zh": "颜色："},
     "outline_color_label": {"en": "Outline:", "zh": "描边："},
+    "color_default_white": {"en": "White", "zh": "白色"},
+    "color_default_black": {"en": "Black", "zh": "黑色"},
     "outline_width_label": {"en": "Outline width:", "zh": "描边宽度："},
     "shadow_depth_label": {"en": "Shadow:", "zh": "阴影："},
     "fps_label": {"en": "FPS:", "zh": "帧率："},
@@ -119,6 +121,10 @@ _STRINGS: dict[str, dict[str, str]] = {
     "brightness_rec_hlg": {
         "en": "Recommended: 100\u2013400 nits (display-adaptive)",
         "zh": "\u63a8\u8350\uff1a100\u2013400 \u5c3c\u7279\uff08\u968f\u663e\u793a\u5668\u81ea\u9002\u5e94\uff09",
+    },
+    "msg_unexpected_error": {
+        "en": "Unexpected error: {0}",
+        "zh": "\u610f\u5916\u9519\u8bef\uff1a{0}",
     },
 }
 
