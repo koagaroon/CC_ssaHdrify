@@ -92,6 +92,9 @@ def sRgbToHdr(source: tuple[int, int, int], target_brightness: int | None = None
 
     output = np.clip(np.round(output * 255), 0, 255)
 
+    if np.any(np.isnan(output)):
+        return (0, 0, 0)
+
     return (int(output[0]), int(output[1]), int(output[2]))
 
 
@@ -122,17 +125,36 @@ def transformEvent(event, target_brightness: int | None = None, eotf: str = "PQ"
     event.text = re.sub(r'(\\[0-9]?c&H)([0-9a-fA-F]{6}|[0-9a-fA-F]{8})(?=[&})\\])', _replaceColor, event.text)
 
 
-def ssaProcessor(fname: str, target_brightness: int | None = None, eotf: str = "PQ"):
-    if not os.path.isfile(fname):
-        print(i18n.get("msg_missing_file").format(fname))
-        return
+_MAX_SUBTITLE_SIZE = 50 * 1024 * 1024  # 50 MB — generous for any real subtitle
+
+
+def _detect_and_decode(fname: str) -> str | None:
+    """Read *fname* as raw bytes and decode using BOM detection + charset inference.
+
+    Returns decoded text on success, or ``None`` on failure (error printed to stdout).
+    Reused by both ``ssaProcessor`` and ``srtSubProcessor``.
+    """
+    # Guard against adversarial multi-GB files that would exhaust memory
+    try:
+        file_size = os.path.getsize(fname)
+    except OSError as e:
+        print(i18n.get("msg_read_error").format(fname, e))
+        return None
+    if file_size > _MAX_SUBTITLE_SIZE:
+        print(i18n.get("msg_file_too_large").format(fname, file_size))
+        return None
 
     try:
         with open(fname, 'rb') as raw_file:
             raw_data = raw_file.read()
     except OSError as e:
         print(i18n.get("msg_read_error").format(fname, e))
-        return
+        return None
+
+    # Double-check after read to close TOCTOU gap (file could be swapped after getsize)
+    if len(raw_data) > _MAX_SUBTITLE_SIZE:
+        print(i18n.get("msg_file_too_large").format(fname, len(raw_data)))
+        return None
 
     # Explicit BOM detection — bypasses statistical inference when BOM is present
     bom_encoding = None
@@ -146,19 +168,53 @@ def ssaProcessor(fname: str, target_brightness: int | None = None, eotf: str = "
             decoded_text = raw_data.decode(bom_encoding)
         except (UnicodeDecodeError, LookupError) as e:
             print(i18n.get("msg_decode_error").format(fname, bom_encoding, e))
-            return
-        coherence_warning = False
+            return None
     else:
         detected = from_bytes(raw_data)
         content = detected.best()
         if content is None:
             print(i18n.get("msg_detect_encoding_fail").format(fname))
-            return
-        coherence_warning = content.coherence < 0.5
+            return None
+        # ASCII/UTF-8 are never ambiguous — only reject low coherence for
+        # encodings where mis-detection could reinterpret bytes dangerously
+        safe_encodings = {"ascii", "utf-8", "utf_8"}
+        if content.coherence < 0.5 and content.encoding.lower().replace("-", "_") not in safe_encodings:
+            print(i18n.get("msg_low_confidence").format(fname, content.encoding, f"{content.coherence:.1%}"))
+            return None
         decoded_text = str(content)
 
-    if coherence_warning:
-        print(i18n.get("msg_low_confidence").format(fname, content.encoding, f"{content.coherence:.1%}"))
+    return decoded_text
+
+
+def _write_ass_output(sub, output_fname: str):
+    """Write parsed ASS document to *output_fname* atomically (temp + replace)."""
+    tmp_fname = output_fname + '.tmp'
+    try:
+        with open(tmp_fname, 'w', encoding='utf_8_sig', newline='\n') as f:
+            sub.dump_file(f)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_fname, output_fname)
+        print(i18n.get("msg_wrote").format(output_fname))
+    except Exception as e:
+        print(i18n.get("msg_write_error").format(output_fname, e))
+        if os.path.exists(tmp_fname):
+            try:
+                os.remove(tmp_fname)
+            except OSError:
+                pass
+
+
+def ssaProcessor(fname: str, target_brightness: int | None = None, eotf: str = "PQ",
+                 output_path: str | None = None, cancel_event=None):
+    """Process an ASS/SSA file: convert all colors to HDR and write output."""
+    if not os.path.isfile(fname):
+        print(i18n.get("msg_missing_file").format(fname))
+        return
+
+    decoded_text = _detect_and_decode(fname)
+    if decoded_text is None:
+        return
 
     try:
         sub = ssa.parse(StringIO(decoded_text))
@@ -173,19 +229,66 @@ def ssaProcessor(fname: str, target_brightness: int | None = None, eotf: str = "
         transformColour(s.back_color, target_brightness, eotf=eotf)
 
     for e in sub.events:
+        if cancel_event is not None and cancel_event.is_set():
+            print(i18n.get("cancelled"))
+            return
         transformEvent(e, target_brightness, eotf=eotf)
 
-    output_fname = os.path.splitext(fname)[0] + '.hdr.ass'
-    tmp_fname = output_fname + '.tmp'
+    if output_path is None:
+        output_fname = os.path.splitext(fname)[0] + '.hdr.ass'
+    else:
+        output_fname = output_path
+
+    _write_ass_output(sub, output_fname)
+
+
+def srtSubProcessor(fname: str, target_brightness: int | None = None, eotf: str = "PQ",
+                    output_path: str | None = None, style_config=None, cancel_event=None):
+    """Process an SRT/SUB file: convert to ASS via pysubs2, then apply HDR colors.
+
+    Uses ``converter.load_as_ass_text()`` to bridge SRT/SUB → ASS text,
+    then feeds into the same ``ass.parse()`` + color transform pipeline.
+    """
+    if not os.path.isfile(fname):
+        print(i18n.get("msg_missing_file").format(fname))
+        return
+
+    decoded_text = _detect_and_decode(fname)
+    if decoded_text is None:
+        return
+
+    from converter import load_as_ass_text
+
+    ext = os.path.splitext(fname)[1].lower()
+    fps = style_config.fps if style_config else 23.976
 
     try:
-        with open(tmp_fname, 'w', encoding='utf_8_sig') as f:
-            sub.dump_file(f)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp_fname, output_fname)
-        print(i18n.get("msg_wrote").format(output_fname))
-    except OSError as e:
-        print(i18n.get("msg_write_error").format(output_fname, e))
-        if os.path.exists(tmp_fname):
-            os.remove(tmp_fname)
+        ass_text = load_as_ass_text(decoded_text, fmt=ext, style_config=style_config, fps=fps)
+    except Exception as e:
+        print(i18n.get("msg_convert_error").format(fname, e))
+        return
+
+    try:
+        sub = ssa.parse(StringIO(ass_text))
+    except Exception as e:
+        print(i18n.get("msg_parse_error").format(fname, e))
+        return
+
+    for s in sub.styles:
+        transformColour(s.primary_color, target_brightness, eotf=eotf)
+        transformColour(s.secondary_color, target_brightness, eotf=eotf)
+        transformColour(s.outline_color, target_brightness, eotf=eotf)
+        transformColour(s.back_color, target_brightness, eotf=eotf)
+
+    for e in sub.events:
+        if cancel_event is not None and cancel_event.is_set():
+            print(i18n.get("cancelled"))
+            return
+        transformEvent(e, target_brightness, eotf=eotf)
+
+    if output_path is None:
+        output_fname = os.path.splitext(fname)[0] + '.hdr.ass'
+    else:
+        output_fname = output_path
+
+    _write_ass_output(sub, output_fname)

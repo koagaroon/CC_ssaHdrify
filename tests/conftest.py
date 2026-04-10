@@ -13,7 +13,12 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*invalid va
 
 
 @pytest.fixture(autouse=True)
-def force_english_locale():
+def force_english_locale(monkeypatch):
     """Ensure tests always run in English regardless of system locale."""
     import i18n
+    original = i18n._current_lang
     i18n._current_lang = "en"
+    # Prevent tests from writing to the real config file
+    monkeypatch.setattr(i18n, "_save_config", lambda data: None)
+    yield
+    i18n._current_lang = original

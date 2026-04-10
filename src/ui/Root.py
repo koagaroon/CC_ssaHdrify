@@ -51,6 +51,7 @@ class Root(Tk):
         self.textFrame = MessageFrame(master=self, text=i18n.get("message"), borderwidth=1)
         self.textFrame.grid(row=2, sticky=NSEW, padx=5, pady=5)
 
+        self._closing = False  # re-entry guard for _on_close
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
     @staticmethod
@@ -71,14 +72,29 @@ class Root(Tk):
         self.options_frame.refresh_language()
 
     def _on_close(self):
+        if self._closing:
+            return  # suppress re-entrant calls (e.g. rapid double-click)
         convert_btn = self.options_frame.select_file_button
         if convert_btn.is_converting:
             if messagebox.askyesno(
                 i18n.get("confirm_close_title"),
                 i18n.get("confirm_close_msg"),
             ):
-                self.after(200, self._on_close)
+                # Yes = wait silently until conversion finishes, then close
+                self._closing = True
+                self.after(200, self._wait_and_close)
                 return
             convert_btn.cancel_and_wait(timeout=2.0)
+        self._closing = True
         self.textFrame.stopPolling()
         self.destroy()
+
+    def _wait_and_close(self):
+        """Poll until conversion finishes, then close — no repeated dialogs."""
+        if not self.winfo_exists():
+            return
+        if self.options_frame.select_file_button.is_converting:
+            self.after(200, self._wait_and_close)
+        else:
+            self.textFrame.stopPolling()
+            self.destroy()

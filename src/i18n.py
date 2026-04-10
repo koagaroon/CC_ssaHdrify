@@ -49,7 +49,11 @@ _STRINGS: dict[str, dict[str, str]] = {
         "en": "Relative brightness, adapts to display. For broadcast HDR and SDR-compatible content.",
         "zh": "\u76f8\u5bf9\u4eae\u5ea6\u6620\u5c04\uff0c\u9002\u5e94\u663e\u793a\u5668\u3002\u9002\u7528\u4e8e\u5e7f\u64ad HDR \u53ca\u9700\u517c\u5bb9 SDR \u7684\u5185\u5bb9\u3002",
     },
-    "msg_missing_file": {"en": "Missing file: {0}", "zh": "\u6587\u4ef6\u4e0d\u5b58\u5728\uff1a{0}"},
+    "msg_missing_file": {"en": "Missing file: {0}", "zh": "文件不存在：{0}"},
+    "msg_file_too_large": {
+        "en": "File too large ({1} bytes), skipping: {0}",
+        "zh": "文件过大（{1} 字节），已跳过：{0}",
+    },
     "msg_read_error": {"en": "Error reading {0}: {1}", "zh": "\u8bfb\u53d6\u5931\u8d25 {0}\uff1a{1}"},
     "msg_decode_error": {
         "en": "Error decoding {0} with BOM encoding {1}: {2}",
@@ -60,14 +64,50 @@ _STRINGS: dict[str, dict[str, str]] = {
         "zh": "\u9519\u8bef\uff1a\u65e0\u6cd5\u68c0\u6d4b {0} \u7684\u7f16\u7801",
     },
     "msg_low_confidence": {
-        "en": "Warning: low confidence encoding detection for {0} (encoding={1}, coherence={2}). Output may contain garbled text.",
-        "zh": "\u8b66\u544a\uff1a{0} \u7f16\u7801\u68c0\u6d4b\u7f6e\u4fe1\u5ea6\u8f83\u4f4e\uff08\u7f16\u7801={1}\uff0c\u7f6e\u4fe1\u5ea6={2}\uff09\uff0c\u8f93\u51fa\u53ef\u80fd\u542b\u4e71\u7801\u3002",
+        "en": "Skipped {0}: low confidence encoding detection (encoding={1}, coherence={2}). File not converted.",
+        "zh": "已跳过 {0}：编码检测置信度较低（编码={1}，置信度={2}），文件未转换。",
     },
     "msg_parse_error": {"en": "Error parsing {0}: {1}", "zh": "\u89e3\u6790\u5931\u8d25 {0}\uff1a{1}"},
     "msg_wrote": {"en": "Wrote {0}", "zh": "\u5df2\u5199\u5165 {0}"},
-    "msg_write_error": {"en": "Error writing {0}: {1}", "zh": "\u5199\u5165\u5931\u8d25 {0}\uff1a{1}"},
-    "ass_filter": {"en": "ASS files", "zh": "ASS \u5b57\u5e55\u6587\u4ef6"},
-    "all_filter": {"en": "all files", "zh": "\u6240\u6709\u6587\u4ef6"},
+    "msg_write_error": {"en": "Error writing {0}: {1}", "zh": "写入失败 {0}：{1}"},
+    "msg_convert_error": {
+        "en": "Error converting {0}: {1}",
+        "zh": "格式转换失败 {0}：{1}",
+    },
+    "msg_template_error": {
+        "en": "Invalid output template \"{0}\": {1}",
+        "zh": "输出模板无效 \"{0}\"：{1}",
+    },
+    "msg_overwrite_self": {
+        "en": "Skipped {0}: output path is the same as input (would overwrite source file).",
+        "zh": "已跳过 {0}：输出路径与输入相同（会覆盖源文件）。",
+    },
+    "ass_filter": {"en": "ASS files", "zh": "ASS 字幕文件"},
+    "srt_filter": {"en": "SRT files", "zh": "SRT 字幕文件"},
+    "sub_filter": {"en": "SUB (MicroDVD) files", "zh": "SUB (MicroDVD) 字幕文件"},
+    "subtitle_filter": {"en": "Subtitle files", "zh": "字幕文件"},
+    "all_filter": {"en": "all files", "zh": "所有文件"},
+    # Output naming
+    "output_label": {"en": "Output:", "zh": "输出："},
+    "template_label": {"en": "Template:", "zh": "模板："},
+    "custom_template": {"en": "Custom...", "zh": "自定义…"},
+    # Advanced style settings
+    "advanced_style": {"en": "Advanced Style Settings", "zh": "高级样式设置"},
+    "font_label": {"en": "Font:", "zh": "字体："},
+    "font_size_label": {"en": "Size:", "zh": "字号："},
+    "primary_color_label": {"en": "Color:", "zh": "颜色："},
+    "outline_color_label": {"en": "Outline:", "zh": "描边："},
+    "outline_width_label": {"en": "Outline width:", "zh": "描边宽度："},
+    "shadow_depth_label": {"en": "Shadow:", "zh": "阴影："},
+    "fps_label": {"en": "FPS:", "zh": "帧率："},
+    "fps_desc": {
+        "en": "Frame rate for SUB (MicroDVD) format only",
+        "zh": "仅用于 SUB (MicroDVD) 格式的帧率",
+    },
+    "style_disabled_hint": {
+        "en": "Style settings apply to SRT/SUB input only",
+        "zh": "样式设置仅适用于 SRT/SUB 输入",
+    },
     "brightness_rec_pq": {
         "en": "Recommended: 100\u2013300 nits (BT.2408 standard: 203)",
         "zh": "\u63a8\u8350\uff1a100\u2013300 \u5c3c\u7279\uff08BT.2408 \u6807\u51c6\u503c 203\uff09",
@@ -107,7 +147,8 @@ def _detect_system_language() -> str:
 def _load_config() -> dict:
     try:
         with open(_config_path(), "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
     except (OSError, json.JSONDecodeError, ValueError):
         return {}
 
