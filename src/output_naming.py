@@ -66,8 +66,9 @@ def resolve_output_path(input_path: str, template: str, eotf: str) -> str:
     result = os.path.normpath(os.path.join(dir_name, output_name))
 
     # Defense-in-depth: reject templates that escape the input directory
-    safe_dir = os.path.normpath(os.path.abspath(dir_name if dir_name else "."))
-    result_abs = os.path.normpath(os.path.abspath(result))
+    # normcase needed on Windows where filesystem is case-insensitive
+    safe_dir = os.path.normcase(os.path.normpath(os.path.abspath(dir_name if dir_name else ".")))
+    result_abs = os.path.normcase(os.path.normpath(os.path.abspath(result)))
     if not (result_abs + os.sep).startswith(safe_dir + os.sep):
         raise ValueError(f"Output path escapes input directory: {result}")
 

@@ -71,12 +71,13 @@ class FileSelectionButton(Button):
                         continue
 
                     # Guard: reject templates that resolve to the input file itself
-                    if os.path.normpath(output_path) == os.path.normpath(f):
+                    if os.path.normcase(os.path.normpath(output_path)) == os.path.normcase(os.path.normpath(f)):
                         print(i18n.get("msg_overwrite_self").format(f))
                         continue
 
                     # Guard: skip duplicate output paths in batch mode
-                    norm_output = os.path.normpath(output_path)
+                    # normcase needed on Windows where filesystem is case-insensitive
+                    norm_output = os.path.normcase(os.path.normpath(output_path))
                     if norm_output in seen_outputs:
                         print(i18n.get("msg_batch_collision").format(output_path))
                         continue

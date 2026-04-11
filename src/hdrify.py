@@ -256,7 +256,7 @@ def _transform_and_write(sub, fname: str, target_brightness: int | None,
         transformEvent(e, target_brightness, eotf=eotf)
 
     output_fname = output_path if output_path is not None else os.path.splitext(fname)[0] + '.hdr.ass'
-    if os.path.normpath(os.path.abspath(output_fname)) == os.path.normpath(os.path.abspath(fname)):
+    if os.path.normcase(os.path.normpath(os.path.abspath(output_fname))) == os.path.normcase(os.path.normpath(os.path.abspath(fname))):
         print(i18n.get("msg_overwrite_self").format(fname))
         return
     _write_ass_output(sub, output_fname)
