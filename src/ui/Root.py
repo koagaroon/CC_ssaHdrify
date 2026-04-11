@@ -17,30 +17,32 @@ _FONT_FAMILIES = ("Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Segoe U
 _FONT_SIZE = 10
 
 
+_VALID_THEME_MODES = {"auto", "light", "dark"}
+
+
 def _detect_system_dark_mode() -> bool:
     """Return True if the OS is in dark mode. Windows only; defaults to False."""
     if platform.system() != "Windows":
         return False
     try:
         import winreg
-        key = winreg.OpenKey(
+        with winreg.OpenKey(
             winreg.HKEY_CURRENT_USER,
             r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
-        )
-        value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
-        winreg.CloseKey(key)
+        ) as key:
+            value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
         return value == 0  # 0 = dark, 1 = light
     except OSError:
         return False
 
 
 def _pick_font_family() -> str:
-    """Return the first available font from the preferred list."""
+    """Return the first available font from the preferred list, or empty string."""
     available = set(tkfont.families())
     for name in _FONT_FAMILIES:
         if name in available:
             return name
-    return "TkDefaultFont"
+    return ""
 
 
 class _ThemePopup:
@@ -50,14 +52,26 @@ class _ThemePopup:
         self._root = root
         self._top = None
 
-    def show(self, x: int, y: int):
+    def toggle(self, x: int, y: int):
+        """Toggle popup: dismiss if open, show if closed."""
+        if self._top and self._top.winfo_exists():
+            self.dismiss()
+            return
+        self._show(x, y)
+
+    def _show(self, x: int, y: int):
         self.dismiss()
         self._top = tk.Toplevel(self._root)
         self._top.overrideredirect(True)
         self._top.attributes("-topmost", True)
         self._top.geometry(f"+{x}+{y}")
 
-        frame = ttk.Frame(self._top, padding=4)
+        colors = self._root.style.colors
+        bg = str(colors.bg)
+        fg = str(colors.fg)
+        hover_bg = str(colors.selectbg)
+
+        frame = tk.Frame(self._top, bg=bg, padx=4, pady=4)
         frame.pack(fill="both", expand=True)
 
         mode = self._root._theme_mode
@@ -73,35 +87,40 @@ class _ThemePopup:
                 ttk.Separator(frame, orient="horizontal").pack(fill="x", pady=2)
                 continue
             indicator = " \u2022" if mode == value else ""
-            btn = ttk.Label(
+            btn = tk.Label(
                 frame,
                 text=label + indicator,
                 cursor="hand2",
-                padding=(8, 4),
+                bg=bg, fg=fg,
+                anchor="w",
+                padx=8, pady=4,
             )
-            btn.pack(fill="x", anchor="w")
-            btn.bind("<Enter>", lambda e, w=btn: w.configure(background=self._root.style.colors.selectbg))
-            btn.bind("<Leave>", lambda e, w=btn: w.configure(background=""))
-            btn.bind("<Button-1>", lambda e, v=value: self._select(v))
+            btn.pack(fill="x")
+            btn.bind("<Enter>", lambda e, w=btn: w.configure(bg=hover_bg))
+            btn.bind("<Leave>", lambda e, w=btn: w.configure(bg=bg))
+            btn.bind("<Button-1>", lambda e, v=value: self._on_click(v))
 
-        self._top.bind("<FocusOut>", lambda e: self.dismiss())
-        self._top.focus_set()
+        # Use grab_set to capture all clicks; clicking outside dismisses the popup
+        self._top.grab_set()
 
-    def _select(self, mode: str):
+    def _on_click(self, mode: str):
+        """Handle click: dismiss first, then apply theme via after() to avoid event ordering issues."""
         self.dismiss()
-        self._root._set_theme(mode)
+        self._root.after(1, lambda: self._root._set_theme(mode))
 
     def dismiss(self):
         if self._top and self._top.winfo_exists():
+            self._top.grab_release()
             self._top.destroy()
         self._top = None
 
 
 class Root(ttk.Window):
     def __init__(self):
-        # Load saved theme preference from config
+        # Load saved theme preference from config (whitelist validated)
         cfg = i18n._load_config()
-        self._theme_mode = cfg.get("theme", "auto")  # "auto", "light", "dark"
+        saved_theme = cfg.get("theme")
+        self._theme_mode = saved_theme if saved_theme in _VALID_THEME_MODES else "auto"
         initial_theme = self._resolve_theme()
 
         super().__init__(themename=initial_theme)
@@ -109,10 +128,13 @@ class Root(ttk.Window):
 
         # Global font: pick best available CJK-capable font at 10pt
         family = _pick_font_family()
+        font_cfg = {"size": _FONT_SIZE}
+        if family:
+            font_cfg["family"] = family
         default_font = tkfont.nametofont("TkDefaultFont")
-        default_font.configure(family=family, size=_FONT_SIZE)
+        default_font.configure(**font_cfg)
         text_font = tkfont.nametofont("TkTextFont")
-        text_font.configure(family=family, size=_FONT_SIZE)
+        text_font.configure(**font_cfg)
 
         # Window sizing: ~30% screen area (3/5 width × 1/2 height), centered
         screen_w = self.winfo_screenwidth()
@@ -174,7 +196,7 @@ class Root(ttk.Window):
         btn = self._theme_btn
         x = btn.winfo_rootx()
         y = btn.winfo_rooty() + btn.winfo_height()
-        self._theme_popup.show(x, y)
+        self._theme_popup.toggle(x, y)
 
     def _set_theme(self, mode: str):
         """Switch theme mode, apply, and persist."""

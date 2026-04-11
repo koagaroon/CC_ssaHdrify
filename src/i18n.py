@@ -129,7 +129,6 @@ _STRINGS: dict[str, dict[str, str]] = {
     # Theme menu
     "theme": {"en": "Theme", "zh": "\u4e3b\u9898"},
     "theme_follow_system": {"en": "Follow System", "zh": "\u8ddf\u968f\u7cfb\u7edf"},
-    "theme_manual": {"en": "Manual", "zh": "\u624b\u52a8\u9009\u62e9"},
     "theme_light": {"en": "Light Mode", "zh": "\u65e5\u95f4\u6a21\u5f0f"},
     "theme_dark": {"en": "Dark Mode", "zh": "\u591c\u95f4\u6a21\u5f0f"},
 }

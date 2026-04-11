@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
+from PyInstaller.utils.hooks import collect_data_files
 
 app_version = os.environ.get("APP_VERSION", "0.0.1")
 
@@ -7,7 +8,7 @@ a = Analysis(
     ['src/main.py'],
     pathex=[],
     binaries=[],
-    datas=[('src/asset/*', "asset")],
+    datas=[('src/asset/*', "asset")] + collect_data_files('ttkbootstrap'),
     hiddenimports=['pysubs2', 'charset_normalizer', 'charset_normalizer.md__mypyc'],
     hookspath=[],
     hooksconfig={},
