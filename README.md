@@ -1,5 +1,10 @@
 # SSA HDRify
 
+> [!NOTE]
+> **本项目已迁移至 Tauri 版本** — 新功能将在 [ssaHdrify-tauri](https://github.com/LtxPoi/ssaHdrify-tauri) 开发。此 Python 版本不再计划新功能，但仍接受 bug 反馈。
+>
+> **Development has moved to the Tauri version** — new features will be developed in [ssaHdrify-tauri](https://github.com/LtxPoi/ssaHdrify-tauri). This Python version is no longer actively developed, but bug reports are still welcome.
+
 > **将 SSA/ASS 字幕颜色从 SDR 色彩空间转换到 HDR 色彩空间的小工具。**
 >
 > *A tool to convert SSA/ASS subtitle colors from SDR to HDR color space.*
