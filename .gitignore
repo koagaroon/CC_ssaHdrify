@@ -118,3 +118,6 @@ dmypy.json
 
 # Jetbrain
 .idea/
+
+# Claude Code
+.claude/settings.local.json
