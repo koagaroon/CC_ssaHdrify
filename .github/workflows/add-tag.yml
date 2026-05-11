@@ -17,13 +17,22 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Info
+        env:
+          VERSION_FILE: ${{ inputs.version_file }}
         run: |
-          echo Using version file ${{inputs.version_file}}
-          echo Version: $(<${{inputs.version_file}})
+          echo "Using version file $VERSION_FILE"
+          echo "Version: $(<"$VERSION_FILE")"
 
       - name: Create tag (skip if already exists)
+        env:
+          VERSION_FILE: ${{ inputs.version_file }}
         run: |
-          TAG=$(<${{inputs.version_file}})
+          # version_file routed via env, not direct ${{ }} expansion: GitHub
+          # expression substitution happens before the shell runs, so a caller
+          # passing $(id) or '; rm -rf $HOME #' as version_file would execute
+          # arbitrary commands inside this workflow (which holds contents:write
+          # and force-pushes tags). Env-var indirection keeps the value as data.
+          TAG=$(<"$VERSION_FILE")
           if [[ ! "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
             echo "::error::Invalid version tag format: '$TAG'"
             exit 1

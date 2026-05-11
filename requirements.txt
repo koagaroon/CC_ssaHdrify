@@ -1,10 +1,17 @@
-ass>=0.5.0
-numpy>=2.1.0
-colour-science>=0.4.4
-charset-normalizer>=3.4.0
-pysubs2>=1.7.0
-Pillow>=11.0
-ttkbootstrap>=1.10
+# Upper bounds cap the accepted version set so a future incompatible or
+# malicious release can't be silently pulled into the GitHub Actions build
+# artifacts (the workflow runs `pip install -r` at build time, no lock file).
+# Pin shape: 0.x packages cap at the next minor (no SemVer guarantees on 0.x);
+# 1.x+ packages cap at the next major (trust SemVer for tested-major
+# compatibility, refuse unreviewed major upgrades). Bump intentionally per
+# release after testing.
+ass>=0.5.0,<0.6
+numpy>=2.1.0,<3.0
+colour-science>=0.4.4,<0.5
+charset-normalizer>=3.4.0,<4.0
+pysubs2>=1.7.0,<2.0
+Pillow>=11.0,<12.0
+ttkbootstrap>=1.10,<2.0
 
 # Build dependencies (not needed for running):
 # pyinstaller~=6.16.0

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import re
-import shutil
 import tempfile
 import warnings
 from io import StringIO
@@ -216,13 +215,18 @@ def _write_ass_output(sub, output_fname: str):
             sub.dump_file(f)
             f.flush()
             os.fsync(f.fileno())
-        try:
-            os.replace(tmp_fname, output_fname)
-        except OSError:
-            # Cross-device rename (e.g. network drive); fall back to
-            # copy+delete (NOT atomic — partial writes possible on crash).
-            shutil.copy2(tmp_fname, output_fname)
-            os.remove(tmp_fname)
+        # No EXDEV fallback: tmp file is created in output_dir (line above), so
+        # cross-device rename literally cannot happen. The previous broad
+        # `except OSError → shutil.copy2()` fallback caught permission/lock
+        # errors AND silently switched from atomic os.replace (which replaces
+        # the path in place) to symlink-following copy semantics. If the
+        # destination path were a symlink to a file outside the subtitle
+        # directory (placed by an attacker or accidentally by the user), the
+        # fallback would have written ASS content through the symlink,
+        # bypassing the path-containment check that resolved the original
+        # output path. Letting OSError propagate keeps the operation atomic
+        # (caller sees a clear write error, original destination unchanged).
+        os.replace(tmp_fname, output_fname)
         print(i18n.get("msg_wrote").format(output_fname))
     except Exception as e:
         print(i18n.get("msg_write_error").format(output_fname, e))
